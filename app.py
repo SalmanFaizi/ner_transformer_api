@@ -1,30 +1,41 @@
 import requests
 import streamlit as st
 
-api_key = st.secrets["api_key"]
+api_key = st.secrets.get("api_key")
 
 API_URL = "https://api-inference.huggingface.co/models/flair/ner-english-large"
 headers = {"Authorization": f"Bearer {api_key}"}
 
 
 def query(payload):
-    response = requests.post(API_URL, headers=headers, json=payload)
-    return response.json()
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error("Failed to get response from the API. Please try again later.")
+            return None
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        return None
 
 
 def get_ner_from_transformer(output):
-    data = output
-    named_entities = {}
-    for entity in data:
-        entity_type = entity["entity_group"]
-        entity_text = entity["word"]
+    if output:
+        data = output
+        named_entities = {}
+        for entity in data:
+            entity_type = entity["entity_group"]
+            entity_text = entity["word"]
 
-        if entity_type not in named_entities:
-            named_entities[entity_type] = []
+            if entity_type not in named_entities:
+                named_entities[entity_type] = []
 
-        named_entities[entity_type].append(entity_text)
+            named_entities[entity_type].append(entity_text)
 
-    return named_entities
+        return named_entities
+    else:
+        return None
 
 
 def main():
@@ -37,8 +48,8 @@ def main():
             output = query({"inputs": text})
             named_entities = get_ner_from_transformer(output)
 
-            st.subheader("Named Entities Detected:")
             if named_entities:
+                st.subheader("Named Entities Detected:")
                 for entity_type, entities in named_entities.items():
                     st.write(f"- {entity_type}: {', '.join(entities)}")
             else:
